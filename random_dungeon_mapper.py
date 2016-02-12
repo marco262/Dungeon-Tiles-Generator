@@ -40,6 +40,7 @@ RIGHT_EDGE = CLOSED
 BOTTOM_EDGE = CLOSED
 LEFT_EDGE = CLOSED
 
+OUTPUT_FILENAME = "map.png"
 
 def main():
     # Build tiles list
@@ -58,7 +59,7 @@ def main():
     # Create map image, then display and save it
     bg = build_final_image(grid)
     bg.show()
-    bg.save("map.png")
+    bg.save(OUTPUT_FILENAME)
 
 def build_tiles():
     """
