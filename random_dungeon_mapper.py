@@ -174,11 +174,9 @@ def pick_tile_for_space(grid, x, y, tiles_list):
     """
     # Randomize list of tiles, and then iterate through them to find a match
     rand_tiles = random.sample(tiles_list, len(tiles_list))
-    # print_tiles(rand_tiles)
     print_grid(grid)
     for tile in rand_tiles:
         if check_if_tile_fits(grid, x, y, tile):
-            # print tile
             return tile
     raise Exception("No fitting tile found")
 
@@ -246,7 +244,6 @@ def check_side(my_tile, grid, x, y, side):
     # E.g. if I'm checking the TOP side of the current tile, get the BOTTOM side of 
     # the tile above me.
     other_side = get_adjacent_side(grid, x, y, side)
-    # print "Checking {}: {} | {}".format(side, my_side, other_side)
     # If no tile is there, that side can be whatever.
     if other_side == UNDEFINED:
         return True
