@@ -1,12 +1,19 @@
 """
-Steps to create the map
-Load all images into a list
-Create rotations of each room tile (no reflections needed)
-Define grid (m x n)
-Define borders of grid (Top border is closed, left border is open, etc)
-Starting with the top row, randomly pick a tile to place in each location, checking to make sure it fits with all
+Random Dungeon Map Generator
+Images created/Script inspired by /u/Pixelnator
+Author: /u/marco262
+
+Naively places random dungeon tiles such that each tile matches up to adjacent tiles/map edges
+Does not guarantee a sane, contiguous map.
+
+Steps to create the map:
+* Load all images into a list
+* Create necessary rotations of each room tile (no reflections needed)
+* Define grid (m x n)
+* Define borders of grid (Top border is closed, left border is open, etc)
+* Starting with the top row, randomly pick a tile to place in each location, checking to make sure it fits with all
     previously placed tiles.
-If any tile cannot fit at all, scrap the whole maze and start again.
+* If any tile cannot fit at all, throw an error. This should hopefully be rare.
 """
 
 from PIL import Image
@@ -34,6 +41,13 @@ BOTTOM_EDGE = CLOSED
 LEFT_EDGE = CLOSED
 
 class Tile(object):
+    """
+    Object that represents a single tile. Saves the image object and sides, 
+    as well as other data. Provides a wrapper for a few PIL commands to
+    access the image.
+    
+    To create a rotated copy of an existing Tile object, use rotate_copy()
+    """
 
     filepath = ""
     image = None
@@ -96,8 +110,11 @@ class Tile(object):
 
 
 def main():
+    # Build tiles list
     tiles_list = build_tiles()
+    # Generate starting grid. All spaces will start as None
     grid = build_grid()
+    # Iterate through each space, finding a tile that fits there.
     for y, row in enumerate(grid):
         for x, space in enumerate(row):
             print "Grid pos:", y, x
@@ -106,6 +123,7 @@ def main():
             grid[y][x] = tile
 
     print_grid(grid)
+    # Create map image, then display and save it
     bg = build_final_image(grid)
     bg.show()
 
@@ -125,6 +143,10 @@ def build_final_image(grid):
     return bg
 
 def print_grid(grid):
+    """
+    Convenience method for printing the grid.
+    :return: None
+    """
     for row in grid:
         print "###",
         for tile in row:
@@ -136,6 +158,10 @@ def print_grid(grid):
 
 
 def print_tiles(tiles_list):
+    """
+    Convenience method for printing the list of tiles.
+    :return: None
+    """
     print "Tiles:", map(str, tiles_list)
 
 def pick_tile_for_space(grid, x, y, tiles_list):
@@ -202,19 +228,32 @@ def get_adjacent_side(grid, x, y, side):
     else:
         other_tile = None
 
+    # If the space doesn't have a tile placed there yet, return UNDEFINED
     if other_tile is None:
         return UNDEFINED
 
     return other_tile.get_opposite_side(side)
 
 def check_side(my_tile, grid, x, y, side):
+    """
+    Checks if the given side of a given tile will fit on the grid.
+    If there's already a tile adjacent on that side and its side type
+    doesn't match, return False. Else, return True.
+    """
+    # Get the type of given side the current tile
     my_side = my_tile.get_side(side)
+    # Get the type of the match side on an adjacent tile
+    # E.g. if I'm checking the TOP side of the current tile, get the BOTTOM side of 
+    # the tile above me.
     other_side = get_adjacent_side(grid, x, y, side)
     # print "Checking {}: {} | {}".format(side, my_side, other_side)
+    # If no tile is there, that side can be whatever.
     if other_side == UNDEFINED:
         return True
+    # CLOSED, HALLWAY, and OPEN must match themselves.
     if my_side in (CLOSED, HALLWAY, OPEN):
         return my_side == other_side
+    # LEFT_WALL must match to RIGHT_WALL, and vice versa
     return ((my_side == LEFT_WALL and other_side == RIGHT_WALL) or
             (my_side == RIGHT_WALL and other_side == LEFT_WALL)
             )
