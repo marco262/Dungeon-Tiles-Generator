@@ -40,6 +40,200 @@ RIGHT_EDGE = CLOSED
 BOTTOM_EDGE = CLOSED
 LEFT_EDGE = CLOSED
 
+
+def main():
+    # Build tiles list
+    tiles_list = build_tiles()
+    # Generate starting grid. All spaces will start as None
+    grid = build_grid()
+    # Iterate through each space, finding a tile that fits there.
+    for y, row in enumerate(grid):
+        for x, space in enumerate(row):
+            print "Grid pos:", y, x
+            tile = pick_tile_for_space(grid, x, y, tiles_list)
+            print "Chosen tile:", tile
+            grid[y][x] = tile
+
+    print_grid(grid)
+    # Create map image, then display and save it
+    bg = build_final_image(grid)
+    bg.show()
+    bg.save("map.png")
+
+def build_tiles():
+    """
+    Builds the list of all possible tile configurations, rotating and copying tiles as needed
+    Sides are defined in clockwise order: TOP, RIGHT, BOTTOM, LEFT
+    :return: list of Tile() objects
+    """
+    tiles = [
+        Tile("dungeon tiles/01 - Corridor .png", (HALLWAY, HALLWAY, HALLWAY, HALLWAY)),
+        Tile("dungeon tiles/02 - Corridor End.png", (CLOSED, CLOSED, HALLWAY, CLOSED))
+    ]
+    # Create 3 copies of the tile, each rotated 90 degress from the previous
+    for i in xrange(3):
+        tiles.append(tiles[-1].rotate_copy(90))
+    tiles.append(Tile("dungeon tiles/03 - Corridor I.png", (HALLWAY, CLOSED, HALLWAY, CLOSED)))
+    tiles.append(tiles[-1].rotate_copy(90))
+    tiles.append(Tile("dungeon tiles/04 - Corridor L.png", (CLOSED, HALLWAY, HALLWAY, CLOSED)))
+    for i in xrange(3):
+        tiles.append(tiles[-1].rotate_copy(90))
+    tiles.append(Tile("dungeon tiles/05 - Corridor T.png", (HALLWAY, HALLWAY, HALLWAY, CLOSED)))
+    for i in xrange(3):
+        tiles.append(tiles[-1].rotate_copy(90))
+    tiles.append(Tile("dungeon tiles/06 - Room Corner Inner.png", (LEFT_WALL, OPEN, OPEN, RIGHT_WALL)))
+    for i in xrange(3):
+        tiles.append(tiles[-1].rotate_copy(90))
+    tiles.append(Tile("dungeon tiles/07 - Room Corner.png", (CLOSED, LEFT_WALL, RIGHT_WALL, CLOSED)))
+    for i in xrange(3):
+        tiles.append(tiles[-1].rotate_copy(90))
+    tiles.append(Tile("dungeon tiles/08 - Room Doorway.png", (RIGHT_WALL, HALLWAY, LEFT_WALL, OPEN)))
+    for i in xrange(3):
+        tiles.append(tiles[-1].rotate_copy(90))
+    tiles.append(Tile("dungeon tiles/09 - Room Wall.png", (LEFT_WALL, OPEN, RIGHT_WALL, CLOSED)))
+    for i in xrange(3):
+        tiles.append(tiles[-1].rotate_copy(90))
+    tiles.append(Tile("dungeon tiles/10 - Solid Wall.png", (CLOSED, CLOSED, CLOSED, CLOSED)))
+    tiles.append(Tile("dungeon tiles/11 - Solid Floor.png", (OPEN, OPEN, OPEN, OPEN)))
+    return tiles
+
+def build_grid():
+    """
+    Creates a list of lists, a 2D grid based on GRID_WIDTH and GRID_HEIGHT
+    Default values in each space is None
+    :return: List of lists of None
+    """
+    return [[None] * GRID_WIDTH for line in xrange(GRID_HEIGHT)]
+
+def pick_tile_for_space(grid, x, y, tiles_list):
+    """
+    :param grid:
+    :param x:
+    :param y:
+    :param tiles_list:
+    :return:
+    """
+    # Randomize list of tiles, and then iterate through them to find a match
+    rand_tiles = random.sample(tiles_list, len(tiles_list))
+    print_grid(grid)
+    for tile in rand_tiles:
+        if check_if_tile_fits(grid, x, y, tile):
+            return tile
+    raise Exception("No fitting tile found")
+
+def check_if_tile_fits(grid, x, y, tile):
+    """
+    If a tile's sides match all sides of all adjacent tiles, return True
+    :param grid:
+    :param x:
+    :param y:
+    :param tile:
+    :return:
+    """
+    return (check_side(tile, grid, x, y, TOP) and
+            check_side(tile, grid, x, y, RIGHT) and
+            check_side(tile, grid, x, y, BOTTOM) and
+            check_side(tile, grid, x, y, LEFT)
+            )
+
+def check_side(my_tile, grid, x, y, side):
+    """
+    Checks if the given side of a given tile will fit on the grid.
+    If there's already a tile adjacent on that side and its side type
+    doesn't match, return False. Else, return True.
+    """
+    # Get the type of given side the current tile
+    my_side = my_tile.get_side(side)
+    # Get the type of the match side on an adjacent tile
+    # E.g. if I'm checking the TOP side of the current tile, get the BOTTOM side of 
+    # the tile above me.
+    other_side = get_adjacent_side(grid, x, y, side)
+    # If no tile is there, that side can be whatever.
+    if other_side == UNDEFINED:
+        return True
+    # CLOSED, HALLWAY, and OPEN must match themselves.
+    if my_side in (CLOSED, HALLWAY, OPEN):
+        return my_side == other_side
+    # LEFT_WALL must match to RIGHT_WALL, and vice versa
+    return ((my_side == LEFT_WALL and other_side == RIGHT_WALL) or
+            (my_side == RIGHT_WALL and other_side == LEFT_WALL)
+            )
+
+def get_adjacent_side(grid, x, y, side):
+    """
+    Gets the adjacent side type for the given tile on its given side
+    E.g. The edge immediately to the left of the given tile may be a HALLWAY, CLOSED, or even UNDEFINED
+    :param grid:
+    :param x:
+    :param y:
+    :param side:
+    :return:
+    """
+    if side == TOP:
+        if y == 0:
+            return TOP_EDGE
+        other_tile = grid[y - 1][x]
+    elif side == RIGHT:
+        try:
+            other_tile = grid[y][x + 1]
+        except IndexError as e:
+            return RIGHT_EDGE
+    elif side == BOTTOM:
+        try:
+            other_tile = grid[y + 1][x]
+        except IndexError as e:
+            return BOTTOM_EDGE
+    elif side == LEFT:
+        if x == 0:
+            return LEFT_EDGE
+        other_tile = grid[y][x - 1]
+    else:
+        other_tile = None
+
+    # If the space doesn't have a tile placed there yet, return UNDEFINED
+    if other_tile is None:
+        return UNDEFINED
+
+    return other_tile.get_opposite_side(side)
+
+def build_final_image(grid):
+    """
+    Creates an image representing the grid of tiles, laid out appropriately
+    :param grid: Grid of Tile() objects
+    :return: Image file
+    """
+    tile_0 = grid[0][0]
+    tile_x, tile_y = tile_0.get_size()
+    bg = Image.new("RGB", size=(tile_x * GRID_WIDTH, tile_y * GRID_HEIGHT))
+
+    for y, row in enumerate(grid):
+        for x, tile in enumerate(row):
+            bg.paste(tile.get_image(), (tile_x * x, tile_y * y))
+    return bg
+
+def print_grid(grid):
+    """
+    Convenience method for printing the grid.
+    :return: None
+    """
+    for row in grid:
+        print "###",
+        for tile in row:
+            if tile is not None:
+                print tile, "|",
+            else:
+                print "No", "|",
+        print
+
+
+def print_tiles(tiles_list):
+    """
+    Convenience method for printing the list of tiles.
+    :return: None
+    """
+    print "Tiles:", map(str, tiles_list)
+
+
 class Tile(object):
     """
     Object that represents a single tile. Saves the image object and sides, 
@@ -108,198 +302,6 @@ class Tile(object):
     def get_opposite_side(self, side):
         return self.sides[(side + 2) % len(self.sides)]
 
-
-def main():
-    # Build tiles list
-    tiles_list = build_tiles()
-    # Generate starting grid. All spaces will start as None
-    grid = build_grid()
-    # Iterate through each space, finding a tile that fits there.
-    for y, row in enumerate(grid):
-        for x, space in enumerate(row):
-            print "Grid pos:", y, x
-            tile = pick_tile_for_space(grid, x, y, tiles_list)
-            print "Chosen tile:", tile
-            grid[y][x] = tile
-
-    print_grid(grid)
-    # Create map image, then display and save it
-    bg = build_final_image(grid)
-    bg.show()
-    bg.save("map.png")
-
-def build_final_image(grid):
-    """
-    Creates an image representing the grid of tiles, laid out appropriately
-    :param grid: Grid of Tile() objects
-    :return: Image file
-    """
-    tile_0 = grid[0][0]
-    tile_x, tile_y = tile_0.get_size()
-    bg = Image.new("RGB", size=(tile_x * GRID_WIDTH, tile_y * GRID_HEIGHT))
-
-    for y, row in enumerate(grid):
-        for x, tile in enumerate(row):
-            bg.paste(tile.get_image(), (tile_x * x, tile_y * y))
-    return bg
-
-def print_grid(grid):
-    """
-    Convenience method for printing the grid.
-    :return: None
-    """
-    for row in grid:
-        print "###",
-        for tile in row:
-            if tile is not None:
-                print tile, "|",
-            else:
-                print "No", "|",
-        print
-
-
-def print_tiles(tiles_list):
-    """
-    Convenience method for printing the list of tiles.
-    :return: None
-    """
-    print "Tiles:", map(str, tiles_list)
-
-def pick_tile_for_space(grid, x, y, tiles_list):
-    """
-    :param grid:
-    :param x:
-    :param y:
-    :param tiles_list:
-    :return:
-    """
-    # Randomize list of tiles, and then iterate through them to find a match
-    rand_tiles = random.sample(tiles_list, len(tiles_list))
-    print_grid(grid)
-    for tile in rand_tiles:
-        if check_if_tile_fits(grid, x, y, tile):
-            return tile
-    raise Exception("No fitting tile found")
-
-def check_if_tile_fits(grid, x, y, tile):
-    """
-    If a tile's sides match all sides of all adjacent tiles, return True
-    :param grid:
-    :param x:
-    :param y:
-    :param tile:
-    :return:
-    """
-    return (check_side(tile, grid, x, y, TOP) and
-            check_side(tile, grid, x, y, RIGHT) and
-            check_side(tile, grid, x, y, BOTTOM) and
-            check_side(tile, grid, x, y, LEFT)
-            )
-
-def get_adjacent_side(grid, x, y, side):
-    """
-    Gets the adjacent side type for the given tile on its given side
-    E.g. The edge immediately to the left of the given tile may be a HALLWAY, CLOSED, or even UNDEFINED
-    :param grid:
-    :param x:
-    :param y:
-    :param side:
-    :return:
-    """
-    if side == TOP:
-        if y == 0:
-            return TOP_EDGE
-        other_tile = grid[y - 1][x]
-    elif side == RIGHT:
-        try:
-            other_tile = grid[y][x + 1]
-        except IndexError as e:
-            return RIGHT_EDGE
-    elif side == BOTTOM:
-        try:
-            other_tile = grid[y + 1][x]
-        except IndexError as e:
-            return BOTTOM_EDGE
-    elif side == LEFT:
-        if x == 0:
-            return LEFT_EDGE
-        other_tile = grid[y][x - 1]
-    else:
-        other_tile = None
-
-    # If the space doesn't have a tile placed there yet, return UNDEFINED
-    if other_tile is None:
-        return UNDEFINED
-
-    return other_tile.get_opposite_side(side)
-
-def check_side(my_tile, grid, x, y, side):
-    """
-    Checks if the given side of a given tile will fit on the grid.
-    If there's already a tile adjacent on that side and its side type
-    doesn't match, return False. Else, return True.
-    """
-    # Get the type of given side the current tile
-    my_side = my_tile.get_side(side)
-    # Get the type of the match side on an adjacent tile
-    # E.g. if I'm checking the TOP side of the current tile, get the BOTTOM side of 
-    # the tile above me.
-    other_side = get_adjacent_side(grid, x, y, side)
-    # If no tile is there, that side can be whatever.
-    if other_side == UNDEFINED:
-        return True
-    # CLOSED, HALLWAY, and OPEN must match themselves.
-    if my_side in (CLOSED, HALLWAY, OPEN):
-        return my_side == other_side
-    # LEFT_WALL must match to RIGHT_WALL, and vice versa
-    return ((my_side == LEFT_WALL and other_side == RIGHT_WALL) or
-            (my_side == RIGHT_WALL and other_side == LEFT_WALL)
-            )
-
-def build_tiles():
-    """
-    Builds the list of all possible tile configurations, rotating and copying tiles as needed
-    Sides are defined in clockwise order: TOP, RIGHT, BOTTOM, LEFT
-    :return: list of Tile() objects
-    """
-    tiles = [
-        Tile("dungeon tiles/01 - Corridor .png", (HALLWAY, HALLWAY, HALLWAY, HALLWAY)),
-        Tile("dungeon tiles/02 - Corridor End.png", (CLOSED, CLOSED, HALLWAY, CLOSED))
-    ]
-    # Create 3 copies of the tile, each rotated 90 degress from the previous
-    for i in xrange(3):
-        tiles.append(tiles[-1].rotate_copy(90))
-    tiles.append(Tile("dungeon tiles/03 - Corridor I.png", (HALLWAY, CLOSED, HALLWAY, CLOSED)))
-    tiles.append(tiles[-1].rotate_copy(90))
-    tiles.append(Tile("dungeon tiles/04 - Corridor L.png", (CLOSED, HALLWAY, HALLWAY, CLOSED)))
-    for i in xrange(3):
-        tiles.append(tiles[-1].rotate_copy(90))
-    tiles.append(Tile("dungeon tiles/05 - Corridor T.png", (HALLWAY, HALLWAY, HALLWAY, CLOSED)))
-    for i in xrange(3):
-        tiles.append(tiles[-1].rotate_copy(90))
-    tiles.append(Tile("dungeon tiles/06 - Room Corner Inner.png", (LEFT_WALL, OPEN, OPEN, RIGHT_WALL)))
-    for i in xrange(3):
-        tiles.append(tiles[-1].rotate_copy(90))
-    tiles.append(Tile("dungeon tiles/07 - Room Corner.png", (CLOSED, LEFT_WALL, RIGHT_WALL, CLOSED)))
-    for i in xrange(3):
-        tiles.append(tiles[-1].rotate_copy(90))
-    tiles.append(Tile("dungeon tiles/08 - Room Doorway.png", (RIGHT_WALL, HALLWAY, LEFT_WALL, OPEN)))
-    for i in xrange(3):
-        tiles.append(tiles[-1].rotate_copy(90))
-    tiles.append(Tile("dungeon tiles/09 - Room Wall.png", (LEFT_WALL, OPEN, RIGHT_WALL, CLOSED)))
-    for i in xrange(3):
-        tiles.append(tiles[-1].rotate_copy(90))
-    tiles.append(Tile("dungeon tiles/10 - Solid Wall.png", (CLOSED, CLOSED, CLOSED, CLOSED)))
-    tiles.append(Tile("dungeon tiles/11 - Solid Floor.png", (OPEN, OPEN, OPEN, OPEN)))
-    return tiles
-
-def build_grid():
-    """
-    Creates a list of lists, a 2D grid based on GRID_WIDTH and GRID_HEIGHT
-    Default values in each space is None
-    :return: List of lists of None
-    """
-    return [[None] * GRID_WIDTH for line in xrange(GRID_HEIGHT)]
 
 if __name__ == "__main__":
     main()
