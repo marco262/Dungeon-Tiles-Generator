@@ -126,6 +126,7 @@ def main():
     # Create map image, then display and save it
     bg = build_final_image(grid)
     bg.show()
+    bg.save("map.png")
 
 def build_final_image(grid):
     """
